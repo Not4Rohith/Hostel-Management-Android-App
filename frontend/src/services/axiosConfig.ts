@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// REPLACE THIS WITH YOUR IP ADDRESS FOUND IN STEP 1
-const BASE_URL = 'http://172.22.61.104:5000/api'; 
+// REPLACE THIS WITH YOUR IP ADDRESS 
+const BASE_URL = 'http://192.168.31.76:5000/api'; 
 
 export const api = axios.create({
   baseURL: BASE_URL,

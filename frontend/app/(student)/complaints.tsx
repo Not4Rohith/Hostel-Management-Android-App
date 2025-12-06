@@ -1,50 +1,60 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { Text, FAB, Modal, Portal, TextInput, Button, ActivityIndicator, SegmentedButtons, Card, Chip, useTheme } from 'react-native-paper';
 import { fetchComplaints, submitComplaint, fetchLeaveRequests, submitLeaveRequest } from '../../src/services/api';
 import { colors } from '../../src/constants/colors';
 import ComplaintCard from '../../src/components/cards/ComplaintCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 
 export default function HelpScreen() {
   const [view, setView] = useState('issues'); 
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<any>(null);
   
+  // Separate states to avoid overwriting
   const [complaints, setComplaints] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
   
-  // Modals
   const [issueModal, setIssueModal] = useState(false);
   const [leaveModal, setLeaveModal] = useState(false);
   
-  // Form Data
   const [newIssue, setNewIssue] = useState({ title: '', category: '' });
   const [newLeave, setNewLeave] = useState({ reason: '', from: '', to: '' });
 
+  // 1. Load User ID on Mount
   useEffect(() => {
     const init = async () => {
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         const id = JSON.parse(userStr).id;
         setUserId(id);
-        loadAllData(id); // Load BOTH lists on mount
       }
     };
     init();
   }, []);
 
-  const loadAllData = async (id: any) => {
+  // 2. Load Data when User ID is ready OR screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        loadData(userId);
+      }
+    }, [userId])
+  );
+
+  const loadData = async (id: any) => {
     setLoading(true);
     try {
-      // Fetch BOTH in parallel so switching tabs is instant
-      const [issuesData, leavesData] = await Promise.all([
-        fetchComplaints(), // api.ts handles passing ID internally now
-        fetchLeaveRequests()
-      ]);
+      // Fetch independently to prevent one failure from blocking the other
+      const issuesPromise = fetchComplaints();
+      const leavesPromise = fetchLeaveRequests();
+
+      const [issuesData, leavesData] = await Promise.allSettled([issuesPromise, leavesPromise]);
+
+      if (issuesData.status === 'fulfilled') setComplaints(issuesData.value || []);
+      if (leavesData.status === 'fulfilled') setLeaves(leavesData.value || []);
       
-      setComplaints(issuesData || []);
-      setLeaves(leavesData || []);
     } catch (e) {
       console.error("Load Error:", e);
     } finally {
@@ -55,23 +65,28 @@ export default function HelpScreen() {
   const handleIssueSubmit = async () => {
     if (!newIssue.title || !newIssue.category) return;
     try {
-      // Submit to backend
       await submitComplaint({ ...newIssue, userId });
       setIssueModal(false);
       setNewIssue({ title: '', category: '' });
-      loadAllData(userId); // Refresh lists
+      loadData(userId); 
     } catch (e) { alert('Failed to submit'); }
   };
 
   const handleLeaveSubmit = async () => {
-    if (!newLeave.reason || !newLeave.from) return;
+    if (!newLeave.reason || !newLeave.from || !userId) {
+        alert("Please fill all fields.");
+        return;
+    }
     try {
-      // Submit to backend
+      console.log("Submitting Gate Pass:", { ...newLeave, studentId: userId });
       await submitLeaveRequest({ ...newLeave, studentId: userId });
       setLeaveModal(false);
       setNewLeave({ reason: '', from: '', to: '' });
-      loadAllData(userId); // Refresh lists
-    } catch (e) { alert('Failed to submit request'); }
+      loadData(userId); 
+    } catch (e) { 
+        console.error(e);
+        alert('Failed to submit request'); 
+    }
   };
 
   return (
@@ -89,7 +104,9 @@ export default function HelpScreen() {
       </View>
 
       <View style={{flex: 1, padding: 16}}>
-        {loading ? <ActivityIndicator color={colors.primary} style={{marginTop: 50}} /> : (
+        {loading && complaints.length === 0 && leaves.length === 0 ? (
+            <ActivityIndicator color={colors.primary} style={{marginTop: 50}} />
+        ) : (
           view === 'issues' ? (
             <>
               <FlatList
