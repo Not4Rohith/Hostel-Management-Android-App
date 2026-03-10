@@ -11,7 +11,7 @@ room allocation, and administrative management.
 - Basic hostel administration interface
 
 ## Tech Stack
-- TypeScript
+- TypeScript (React Native)
 - JavaScript (Node.js)
 - SQLite
 
