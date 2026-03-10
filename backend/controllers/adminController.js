@@ -54,3 +54,10 @@ exports.getAllStudents = async (req, res) => {
   const students = await User.findAll({ where: { role: 'student' } });
   res.json(students);
 };
+
+
+
+// Admin-specific operations
+// Examples:
+//   View hostel stats
+//   Manage rooms, students, complaints

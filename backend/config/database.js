@@ -7,3 +7,9 @@ const sequelize = new Sequelize({
 });
 
 module.exports = sequelize;
+
+
+
+// Sets up the SQLite database connection
+// Initializes tables or exports the DB instance
+// Used by models to interact with the database
