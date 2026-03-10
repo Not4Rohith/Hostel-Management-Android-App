@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Text, Avatar, List, Switch, Button, Divider, Surface, useTheme, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/useAuthStore';
@@ -27,18 +27,29 @@ export default function ProfileScreen() {
     setLoading(false);
   };
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      { 
-        text: "Logout", 
-        style: 'destructive',
-        onPress: () => {
-          logout();
-          router.replace('/(auth)/login');
-        } 
+  const handleLogout = async () => {
+    // WEB BEHAVIOR
+    if (Platform.OS === 'web') {
+      const confirmLogout = window.confirm("Are you sure you want to logout?");
+      if (confirmLogout) {
+        await logout(); // Wait for storage to clear
+        router.replace('/(auth)/login');
       }
-    ]);
+    } 
+    // MOBILE BEHAVIOR
+    else {
+      Alert.alert("Logout", "Are you sure you want to logout?", [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Logout", 
+          style: 'destructive',
+          onPress: async () => {
+            await logout(); // Wait for storage to clear
+            router.replace('/(auth)/login');
+          } 
+        }
+      ]);
+    }
   };
 
   const dialNumber = (number: string) => {
